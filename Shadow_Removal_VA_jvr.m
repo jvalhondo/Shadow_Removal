@@ -1,0 +1,146 @@
+%*************************************************************************%
+% file: Shadow_Removal_VA_jvr.m
+% 
+% SHADOW REMOVAL from RBG images. It is focused on removing shadow areas from
+% the image and not on the detection. The script consists of two modules:
+%
+%   - SHADOW DETECTION: identification of shadow areas on the image
+%   - SHADOW REMOVAL: removing shadow areas from the RBG image based on
+%                     the following methods: 
+%
+% ------------------------- SHADOW REMOVAL METHODS ------------------------ 
+% 1. ADDITIVE:
+% Adjusting shadow & light pixel intensities by adding the difference of pixel
+% averages to the shadow pixels.
+%
+% 2. BASIC LIGHT MODEL:
+% Basic light model containing an ambient & a directed light.
+%
+% 3. ENHANCED LIGHT MODEL:
+% Enhanced shadow removal based on the same light model containing two types
+% of light. Needs a 'fuzzy' shadowmap containing for each pixel, the level 
+% of lightness to give correct results.
+%
+% 4. YCbCr COLORSPACE:
+% Hybridation of the additive and light model based methods on YCbCr colourspace.
+%
+%*************************************************************************%
+
+clear all, close all, clc
+% IMAGE: read and show RGB image
+image = double(imread('images/test_2.png'))./255; % colour values between 0 and 1
+s_im = size(image);
+figure, imshow(image), 
+title('Original Image')
+
+%*************************************************************************%
+
+% SHADOW DETECTION
+
+    % MASK: creating a shadow segmentation if no mask is available
+    gray = rgb2gray(image);
+    mask = 1-double(im2bw(gray, graythresh(gray)));
+    %figure, imshow(mask), title('Shadow Mask')
+
+    % SHADOW / LIGHT CORE DETECTION
+    % structuring element
+    strel = [0 1 1 1 0; 1 1 1 1 1; 1 1 1 1 1; 1 1 1 1 1; 0 1 1 1 0];
+    % shadow/light  core (morphology erode: pixels not on the blurred edge of the shadow area)
+    shadow_core = imerode(mask, strel);
+    light_core = imerode(1-mask, strel);
+    % smoothing the mask
+    smoothmask = conv2(mask, strel/21, 'same');
+
+    % AVERAGE PIXEL INTENSITIES
+    % shadow area
+    shadow_avg_red = sum(sum(image(:,:,1).*shadow_core)) / sum(sum(shadow_core));
+    shadow_avg_green = sum(sum(image(:,:,2).*shadow_core)) / sum(sum(shadow_core));
+    shadow_avg_blue = sum(sum(image(:,:,3).*shadow_core)) / sum(sum(shadow_core));
+    % light area
+    light_avg_red = sum(sum(image(:,:,1).*light_core)) / sum(sum(light_core));
+    light_avg_green = sum(sum(image(:,:,2).*light_core)) / sum(sum(light_core));
+    light_avg_blue = sum(sum(image(:,:,3).*light_core)) / sum(sum(light_core));
+
+%*************************************************************************%
+
+% SHADOW REMOVAL: different methods
+    
+    % Method 1: ADDITIVE SHADOW REMOVAL
+    result_additive = zeros(s_im);
+    % compiting colour difference between the shadow/lit areas
+    diff_red = light_avg_red - shadow_avg_red;
+    diff_green = light_avg_green - shadow_avg_green;
+    diff_blue = light_avg_blue - shadow_avg_blue;
+    % adding the difference to the shadow pixels
+    result_additive(:,:,1) = image(:,:,1) + smoothmask * diff_red;
+    result_additive(:,:,2) = image(:,:,2) + smoothmask * diff_green;
+    result_additive(:,:,3) = image(:,:,3) + smoothmask * diff_blue;
+    % show result additive
+    figure, imshow(result_additive), 
+    title('Shadow Removal: Additive method (adding the difference to the shadow pixels)')
+    
+    %---------------------------------------------------------------------%
+    
+    % Method 2: BASIC , LIGHT MODEL BASED SHADOW REMOVAL
+    result_basic_model = zeros(s_im);
+    % computing ratio of shadow/lit area luminance
+    ratio_red = light_avg_red/shadow_avg_red;
+    ratio_green = light_avg_green/shadow_avg_green;
+    ratio_blue = light_avg_blue/shadow_avg_blue;
+    % multipliing the shadow pixels with the raio for the correction
+    result_basic_model(:,:,1) = image(:,:,1).*(1-mask) + mask.*ratio_red.*image(:,:,1);
+    result_basic_model(:,:,2) = image(:,:,2).*(1-mask) + mask.*ratio_green.*image(:,:,2);
+    result_basic_model(:,:,3) = image(:,:,3).*(1-mask) + mask.*ratio_blue.*image(:,:,3);
+    % show result basic light model
+    figure, imshow(result_basic_model), 
+    title('Shadow Removal: Basic light model method')
+    
+    %---------------------------------------------------------------------%
+    
+    % Method 3: ADVANCE, LIGHT MODEL BASED SHADOW REMOVAL
+    result_enhanced_model = zeros(s_im);
+    % computing ratio of the luminances of the directed, and global lights
+    ratio_red = light_avg_red/shadow_avg_red - 1;
+    ratio_green = light_avg_green/shadow_avg_green - 1;
+    ratio_blue = light_avg_blue/shadow_avg_blue - 1;
+    % appliing shadow removal formula (too long for the comment -> see documentation :) )
+    result_enhanced_model(:,:,1) = (ratio_red + 1)./((1-smoothmask)*ratio_red + 1).*image(:,:,1);
+    result_enhanced_model(:,:,2) = (ratio_green + 1)./((1-smoothmask)*ratio_green + 1).*image(:,:,2);
+    result_enhanced_model(:,:,3) = (ratio_blue + 1)./((1-smoothmask)*ratio_blue + 1).*image(:,:,3);
+    % show result advanced light model
+    figure, imshow(result_enhanced_model), 
+    title('Shadow Removal: Enhanced light model method')
+    
+    %---------------------------------------------------------------------%
+    
+    % Method 4: COMBINED ADDITIVE AND LIGHT MODEL BASED SHADOW REMOVAL IN YCbCr COLOURSPACE
+    % conversion to ycbcr
+    ycbcr = rgb2ycbcr(image);
+    % computing averade channel values in ycbcr space
+    shadow_avg_y = sum(sum(ycbcr(:,:,1).*shadow_core)) / sum(sum(shadow_core));
+    shadow_avg_cb = sum(sum(ycbcr(:,:,2).*shadow_core)) / sum(sum(shadow_core));
+    shadow_avg_cr = sum(sum(ycbcr(:,:,3).*shadow_core)) / sum(sum(shadow_core));
+    %
+    litavg_y = sum(sum(ycbcr(:,:,1).*light_core)) / sum(sum(light_core));
+    litavg_cb = sum(sum(ycbcr(:,:,2).*light_core)) / sum(sum(light_core));
+    litavg_cr = sum(sum(ycbcr(:,:,3).*light_core)) / sum(sum(light_core));
+    % computing ratio, and difference in ycbcr space
+    diff_y = litavg_y - shadow_avg_y;
+    diff_cb = litavg_cb - shadow_avg_cb;
+    diff_cr = litavg_cr - shadow_avg_cr;
+
+    ratio_y = litavg_y/shadow_avg_y;
+    ratio_cb = litavg_cb/shadow_avg_cb;
+    ratio_cr = litavg_cr/shadow_avg_cr;
+    % shadow correction, see formulas above
+    % y channel has an additive correction
+    % cb, and cr channels gets a model based correction
+    aux_result_ycbcr = ycbcr;
+    aux_result_ycbcr(:,:,1) = ycbcr(:,:,1) + mask * diff_y;
+    aux_result_ycbcr(:,:,2) = ycbcr(:,:,2).*(1-mask) + mask.*ratio_cb.*ycbcr(:,:,2);
+    aux_result_ycbcr(:,:,3) = ycbcr(:,:,3).*(1-mask) + mask.*ratio_cr.*ycbcr(:,:,3);
+    % conversion back to rgb colourspace
+    result_ycbcr = ycbcr2rgb(aux_result_ycbcr);
+    % show result YCbCr
+    figure, imshow(result_ycbcr), 
+    title('Shadow Removal: YC_bC_r method')
