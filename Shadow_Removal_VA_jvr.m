@@ -32,7 +32,7 @@
 
 clear all, close all, clc
 % IMAGE: read and show RGB image
-image = double(imread('images/.png'))./255; % colour values between 0 and 1
+image = double(imread('images/test_1.png'))./255; % colour values between 0 and 1
 s_im = size(image);
 
 %*************************************************************************%
@@ -65,7 +65,7 @@ s_im = size(image);
     light_avg_red = sum(sum(image(:,:,1).*light_core)) / sum(sum(light_core));
     light_avg_green = sum(sum(image(:,:,2).*light_core)) / sum(sum(light_core));
     light_avg_blue = sum(sum(image(:,:,3).*light_core)) / sum(sum(light_core));
-    
+
 %*************************************************************************%
 
 % SHADOW REMOVAL: different methods
@@ -90,7 +90,10 @@ s_im = size(image);
     ratio_green = light_avg_green/shadow_avg_green;
     ratio_blue = light_avg_blue/shadow_avg_blue;
     % multiplying the shadow pixels with the raio for the correction
-    result_basic_model(:,:,1) = image(:,:,1).*light_mask + shadow_mask.*ratio_red.*image(:,:,1);
+%     result_basic_model(:,:,1) = image(:,:,1).*light_mask + shadow_mask.*ratio_red.*image(:,:,1);
+%     result_basic_model(:,:,2) = image(:,:,2).*light_mask + shadow_mask.*ratio_green.*image(:,:,2);
+%     result_basic_model(:,:,3) = image(:,:,3).*light_mask + shadow_mask.*ratio_blue.*image(:,:,3);
+    result_basic_model(:,:,1) = (light_mask + shadow_mask.*ratio_red).*image(:,:,1);
     result_basic_model(:,:,2) = image(:,:,2).*light_mask + shadow_mask.*ratio_green.*image(:,:,2);
     result_basic_model(:,:,3) = image(:,:,3).*light_mask + shadow_mask.*ratio_blue.*image(:,:,3);
     
@@ -102,7 +105,7 @@ s_im = size(image);
     ratio_red = light_avg_red/shadow_avg_red - 1;
     ratio_green = light_avg_green/shadow_avg_green - 1;
     ratio_blue = light_avg_blue/shadow_avg_blue - 1;
-    % applying shadow removal formula
+    % applying shadow removal formula (too long for the comment -> see documentation :) )
     result_enhanced_model(:,:,1) = (ratio_red + 1)./((1-smoothmask)*ratio_red + 1).*image(:,:,1);
     result_enhanced_model(:,:,2) = (ratio_green + 1)./((1-smoothmask)*ratio_green + 1).*image(:,:,2);
     result_enhanced_model(:,:,3) = (ratio_blue + 1)./((1-smoothmask)*ratio_blue + 1).*image(:,:,3);
@@ -110,30 +113,32 @@ s_im = size(image);
     %---------------------------------------------------------------------%
     
     % Method 4: COMBINED ADDITIVE AND LIGHT MODEL BASED SHADOW REMOVAL IN im_ycbcr COLOURSPACE
-    % conversion to YCbCr colorspace: Y->luminance, Cb->blue-difference, Cr->red-difference
+    % conversion to YCbCr colorspace
     im_ycbcr = rgb2ycbcr(image);
-    % computing average channel values in YCbCr colorspace
+    % computing averade channel values in im_ycbcr space
     shadow_avg_y = sum(sum(im_ycbcr(:,:,1).*shadow_core)) / sum(sum(shadow_core));
     shadow_avg_cb = sum(sum(im_ycbcr(:,:,2).*shadow_core)) / sum(sum(shadow_core));
     shadow_avg_cr = sum(sum(im_ycbcr(:,:,3).*shadow_core)) / sum(sum(shadow_core));
     %
-    light_avg_y = sum(sum(im_ycbcr(:,:,1).*light_core)) / sum(sum(light_core));
-    light_avg_cb = sum(sum(im_ycbcr(:,:,2).*light_core)) / sum(sum(light_core));
-    light_avg_cr = sum(sum(im_ycbcr(:,:,3).*light_core)) / sum(sum(light_core));
+    litavg_y = sum(sum(im_ycbcr(:,:,1).*light_core)) / sum(sum(light_core));
+    litavg_cb = sum(sum(im_ycbcr(:,:,2).*light_core)) / sum(sum(light_core));
+    litavg_cr = sum(sum(im_ycbcr(:,:,3).*light_core)) / sum(sum(light_core));
     % computing ratio, and difference in im_ycbcr space
-    ratio_y = light_avg_y/shadow_avg_y;
-    ratio_cb = light_avg_cb/shadow_avg_cb;
-    ratio_cr = light_avg_cr/shadow_avg_cr;
-    %
-    diff_y = light_avg_y - shadow_avg_y;
-    diff_cb = light_avg_cb - shadow_avg_cb;
-    diff_cr = light_avg_cr - shadow_avg_cr;
-    % shadow correction: Y->additive correction, Cb&Cr-> basic light model correction
+    diff_y = litavg_y - shadow_avg_y;
+    diff_cb = litavg_cb - shadow_avg_cb;
+    diff_cr = litavg_cr - shadow_avg_cr;
+
+    ratio_y = litavg_y/shadow_avg_y;
+    ratio_cb = litavg_cb/shadow_avg_cb;
+    ratio_cr = litavg_cr/shadow_avg_cr;
+    % shadow correction, see formulas above
+    % y channel has an additive correction
+    % cb, and cr channels gets a model based correction
     aux_result_im_ycbcr = im_ycbcr;
-    aux_result_im_ycbcr(:,:,1) = im_ycbcr(:,:,1) + shadow_mask*diff_y;
+    aux_result_im_ycbcr(:,:,1) = im_ycbcr(:,:,1) + shadow_mask * diff_y;
     aux_result_im_ycbcr(:,:,2) = im_ycbcr(:,:,2).*light_mask + shadow_mask.*ratio_cb.*im_ycbcr(:,:,2);
     aux_result_im_ycbcr(:,:,3) = im_ycbcr(:,:,3).*light_mask + shadow_mask.*ratio_cr.*im_ycbcr(:,:,3);
-    % back to RGB colourspace
+    % conversion back to rgb colourspace
     result_im_ycbcr = ycbcr2rgb(aux_result_im_ycbcr);
  
 %*************************************************************************%
