@@ -65,7 +65,7 @@ s_im = size(image);
     light_avg_red = sum(sum(image(:,:,1).*light_core)) / sum(sum(light_core));
     light_avg_green = sum(sum(image(:,:,2).*light_core)) / sum(sum(light_core));
     light_avg_blue = sum(sum(image(:,:,3).*light_core)) / sum(sum(light_core));
-    
+
 %*************************************************************************%
 
 % SHADOW REMOVAL: different methods
