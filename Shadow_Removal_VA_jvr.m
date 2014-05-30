@@ -32,7 +32,7 @@
 
 clear all, close all, clc
 % IMAGE: read and show RGB image
-image = double(imread('images/test_1.png'))./255; % colour values between 0 and 1
+image = double(imread('images/1.png'))./255; % colour values between 0 and 1
 s_im = size(image);
 
 %*************************************************************************%
@@ -99,10 +99,7 @@ s_im = size(image);
     ratio_red = light_avg_red/shadow_avg_red;
     ratio_green = light_avg_green/shadow_avg_green;
     ratio_blue = light_avg_blue/shadow_avg_blue;
-    % multiplying the shadow pixels with the raio for the correction
-%     result_basic_model(:,:,1) = image(:,:,1).*light_mask + shadow_mask.*ratio_red.*image(:,:,1);
-%     result_basic_model(:,:,2) = image(:,:,2).*light_mask + shadow_mask.*ratio_green.*image(:,:,2);
-%     result_basic_model(:,:,3) = image(:,:,3).*light_mask + shadow_mask.*ratio_blue.*image(:,:,3);
+    %
     result_basic_model(:,:,1) = (light_mask + shadow_mask.*ratio_red).*image(:,:,1);
     result_basic_model(:,:,2) = image(:,:,2).*light_mask + shadow_mask.*ratio_green.*image(:,:,2);
     result_basic_model(:,:,3) = image(:,:,3).*light_mask + shadow_mask.*ratio_blue.*image(:,:,3);
@@ -115,7 +112,7 @@ s_im = size(image);
     ratio_red = light_avg_red/shadow_avg_red - 1;
     ratio_green = light_avg_green/shadow_avg_green - 1;
     ratio_blue = light_avg_blue/shadow_avg_blue - 1;
-    % applying shadow removal formula (too long for the comment -> see documentation :) )
+    % applying shadow removal
     result_enhanced_model(:,:,1) = (ratio_red + 1)./((1-smoothmask)*ratio_red + 1).*image(:,:,1);
     result_enhanced_model(:,:,2) = (ratio_green + 1)./((1-smoothmask)*ratio_green + 1).*image(:,:,2);
     result_enhanced_model(:,:,3) = (ratio_blue + 1)./((1-smoothmask)*ratio_blue + 1).*image(:,:,3);
@@ -141,9 +138,7 @@ s_im = size(image);
     ratio_y = litavg_y/shadow_avg_y;
     ratio_cb = litavg_cb/shadow_avg_cb;
     ratio_cr = litavg_cr/shadow_avg_cr;
-    % shadow correction, see formulas above
-    % y channel has an additive correction
-    % cb, and cr channels gets a model based correction
+    % shadow correction: Y->additive, Cb&Cr-> basic light model
     aux_result_im_ycbcr = im_ycbcr;
     aux_result_im_ycbcr(:,:,1) = im_ycbcr(:,:,1) + shadow_mask * diff_y;
     aux_result_im_ycbcr(:,:,2) = im_ycbcr(:,:,2).*light_mask + shadow_mask.*ratio_cb.*im_ycbcr(:,:,2);
@@ -157,17 +152,14 @@ s_im = size(image);
     
     % Show original image
     figure, imshow(image), title('Original Image')
-    
     % Show Masks: Light, Shadow, Smooth
     figure,
     subplot(1,3,1), imshow(light_mask), title('Light Mask')
     subplot(1,3,2), imshow(shadow_mask), title('Shadow Mask')
     subplot(1,3,3), imshow(smoothmask), title('Smooth Mask')
-    
     % Show result ADDITIVE, BASIC LIGHT MODEL, ENHANCED LIGHT MODEL, YCbCr methods
     figure, 
     subplot(2,2,1), imshow(result_additive), title('Shadow Removal: Additive method')
     subplot(2,2,2), imshow(result_basic_model), title('Shadow Removal: Basic light model method')
     subplot(2,2,3), imshow(result_enhanced_model), title('Shadow Removal: Enhanced light model method')
     subplot(2,2,4), imshow(result_im_ycbcr), title('Shadow Removal: YC_bC_r method')
-    
