@@ -66,6 +66,16 @@ s_im = size(image);
     light_avg_green = sum(sum(image(:,:,2).*light_core)) / sum(sum(light_core));
     light_avg_blue = sum(sum(image(:,:,3).*light_core)) / sum(sum(light_core));
 
+    % K-MEANS CLUSTERING
+    im_hsv = rgb2hsv(image);
+    data = zeros(s_im(1)*s_im(2), 5);
+    for r=1:s_im(1)
+        for c=1:s_im(2)
+            data(r,:) = [im_hsv(r,c,1), im_hsv(r,c,2), im_hsv(r,c,3), r, c];
+        end
+    end
+    k = 3;
+    IDX = kmeans(data,k)
 %*************************************************************************%
 
 % SHADOW REMOVAL: different methods
